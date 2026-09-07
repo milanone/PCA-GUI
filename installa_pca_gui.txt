@@ -1,0 +1,89 @@
+# ============================================================
+#  INSTALLAZIONE — PCA GUI
+#  Eseguire in PowerShell (tasto destro → "Esegui come amministratore"
+#  per il passaggio di installazione di Python; il resto va bene
+#  anche senza privilegi elevati)
+# ============================================================
+
+
+# ── 1. INSTALLAZIONE DI PYTHON ───────────────────────────────────────────
+#
+#  Opzione A — tramite winget (Windows 10/11 con App Installer installato)
+#  Installa l'ultima versione stabile di Python 3 dal Microsoft Store.
+
+winget install -e --id Python.Python.3.13
+
+#  Dopo l'installazione, chiudere e riaprire PowerShell oppure aggiornare
+#  il PATH nella sessione corrente:
+
+$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + `
+            [System.Environment]::GetEnvironmentVariable("Path","User")
+
+#  Verifica che Python sia raggiungibile:
+
+python --version
+pip --version
+
+# ─────────────────────────────────────────────────────────────────────────
+#  Opzione B — download diretto da python.org (senza winget)
+#  Scaricare manualmente il file .exe da https://www.python.org/downloads/
+#  e installarlo con l'opzione "Add Python to PATH" spuntata.
+#  Oppure, da PowerShell:
+
+Invoke-WebRequest -Uri "https://www.python.org/ftp/python/3.13.3/python-3.13.3-amd64.exe" `
+                  -OutFile "$env:TEMP\python-installer.exe"
+Start-Process "$env:TEMP\python-installer.exe" `
+              -ArgumentList "/quiet InstallAllUsers=1 PrependPath=1" `
+              -Wait
+$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + `
+            [System.Environment]::GetEnvironmentVariable("Path","User")
+
+
+# ── 2. AGGIORNAMENTO DI PIP ───────────────────────────────────────────────
+
+python -m pip install --upgrade pip
+
+
+# ── 3. LIBRERIE OBBLIGATORIE ─────────────────────────────────────────────
+
+pip install numpy
+pip install pandas
+pip install scikit-learn
+pip install matplotlib
+pip install openpyxl
+
+#  Oppure in un unico comando:
+
+pip install numpy pandas scikit-learn matplotlib openpyxl
+
+
+# ── 4. LIBRERIA OPZIONALE ────────────────────────────────────────────────
+#  adjustText evita la sovrapposizione delle etichette nel biplot.
+#  Il programma funziona anche senza; se non è installata le etichette
+#  vengono posizionate senza ottimizzazione automatica.
+
+pip install adjustText
+
+
+# ── 5. VERIFICA INSTALLAZIONE ────────────────────────────────────────────
+#  Controlla che tutte le librerie siano importabili correttamente.
+
+python -c "import numpy; print('numpy        OK', numpy.__version__)"
+python -c "import pandas; print('pandas       OK', pandas.__version__)"
+python -c "import sklearn; print('scikit-learn OK', sklearn.__version__)"
+python -c "import matplotlib; print('matplotlib   OK', matplotlib.__version__)"
+python -c "import openpyxl; print('openpyxl     OK', openpyxl.__version__)"
+python -c "import adjustText; print('adjustText   OK', adjustText.__version__)"
+python -c "import tkinter; print('tkinter      OK (built-in)')"
+
+
+# ── 6. AVVIO DEL PROGRAMMA ───────────────────────────────────────────────
+#  Sostituire il percorso con quello reale del file sul proprio computer.
+
+pythonw "C:\percorso\PCA\pca_gui.pyw"
+
+#  Nota: "pythonw" avvia il programma senza finestra console.
+#  In alternativa si può fare doppio clic direttamente sul file .pyw
+#  da Esplora file, oppure usare:
+
+Start-Process pythonw -ArgumentList '"C:\percorso\PCA\pca_gui.pyw"'

@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.claude/
+
+# Lab data (not presentable / not meant for publication)
+*.xlsx
+*.xls
+_preview.txt
+_struttura.py

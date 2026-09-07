@@ -1,7 +1,8 @@
 # PCA GUI
 
-Desktop GUI (Python/tkinter) for Principal Component Analysis on tabular data (e.g. HPLC,
-spectroscopy, or any samples × variables dataset), producing publication-ready plots: scree plot,
+Desktop GUI (Python/tkinter) for Principal Component Analysis on tabular data — e.g. compound/
+metabolite concentration profiles across sample groups (HPLC data, chemotaxonomy, quality
+control), or any samples × variables dataset — producing publication-ready plots: scree plot,
 loadings bar chart and biplot.
 
 ## Features

@@ -5,6 +5,8 @@ metabolite concentration profiles across sample groups (HPLC data, chemotaxonomy
 control), or any samples × variables dataset — producing publication-ready plots: scree plot,
 loadings bar chart and biplot.
 
+![PCA GUI screenshot](screenshot.png)
+
 ## Features
 
 - Load data from Excel, in either orientation — samples as rows or samples as columns (with

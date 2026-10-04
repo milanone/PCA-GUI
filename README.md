@@ -21,6 +21,10 @@ loadings bar chart and biplot.
 - Export: full figure or individual panels (PDF/PNG/SVG), scores/loadings/variance to Excel, or a
   ready-to-plot Excel workbook (separate sheets for scores, loading arrows, group ellipses) for
   building the same chart natively in Excel
+- `Edit Figure...` reopens any one panel (scree / loadings / biplot) in PlotStyleKit's standalone
+  figure editor for titles, per-element styling and publication-size export; `Salva figura
+  (pickle)...` saves a panel as a live, re-editable `Figure` object instead of a raster image — see
+  Requirements below
 
 ## Requirements
 
@@ -28,6 +32,11 @@ loadings bar chart and biplot.
 numpy, pandas, scikit-learn, matplotlib, openpyxl
 adjustText   # optional — avoids overlapping labels in the biplot
 ```
+
+[PlotStyleKit](https://github.com/milanone/PlotStyleKit) is an optional sibling repo (cloned as
+`../PlotStyleKit` next to this project) providing the shared Origin-like plot style and the
+standalone figure editor behind `Edit Figure...` / `Salva figura (pickle)...`; without it those two
+buttons are unavailable and the app uses default matplotlib styling.
 
 See [`installa_pca_gui.txt`](installa_pca_gui.txt) for a step-by-step Windows/PowerShell setup
 guide (Italian).

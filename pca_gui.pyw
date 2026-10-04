@@ -4,6 +4,8 @@ PCA GUI — Analisi delle Componenti Principali
 Autore: generato con Claude per Francesco
 """
 
+import os
+import pickle
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import traceback
@@ -24,6 +26,31 @@ try:
 except ImportError:
     HAS_ADJUSTTEXT = False
 
+# Stile "Origin-like" condiviso col repo fratello PlotStyleKit (così pca-gui,
+# LabSpectrumManager e KleistekManager usano lo stesso modulo senza duplicarlo).
+# Caricato per path, cercando PRIMA una copia locale in questa cartella e POI la
+# cartella fratella ../PlotStyleKit condivisa; fallback no-op se manca del tutto
+# (vedi il warning mostrato all'avvio in __init__). I rcParams vengono impostati
+# subito, prima di creare qualunque figura, così i grafici nascono già in stile Origin.
+def _carica_origin_style():
+    import importlib.util as ilu
+    here = os.path.dirname(os.path.abspath(__file__))
+    for path in (os.path.join(here, 'origin_style.py'),
+                 os.path.join(here, '..', 'PlotStyleKit', 'origin_style.py')):
+        if os.path.isfile(path):
+            spec = ilu.spec_from_file_location('origin_style', path)
+            mod = ilu.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            return mod
+    return None
+
+try:
+    origin_style = _carica_origin_style()
+    if origin_style is not None:
+        origin_style.applica_rcparams()
+except Exception:
+    origin_style = None
+
 SCALERS = {
     'z-score':    lambda: StandardScaler(),
     'centratura': lambda: StandardScaler(with_std=False),
@@ -39,6 +66,21 @@ class PCAApp:
         self.root.title("PCA — Analisi Componenti Principali")
         self.root.geometry("1200x800")
         self.root.configure(bg='#f5f5f5')
+
+        if origin_style is None:
+            # avviso non bloccante: l'app funziona comunque (stile matplotlib di
+            # default), ma senza il look Origin né "Edit Figure...".
+            self.root.after(200, lambda: messagebox.showwarning(
+                "PlotStyleKit non trovato",
+                "Il repo condiviso PlotStyleKit (origin_style.py / plot_editor.pyw) non è stato "
+                "trovato né come copia locale in questa cartella né come cartella fratella "
+                "..\\PlotStyleKit.\n\n"
+                "I grafici useranno lo stile matplotlib di default (niente look Origin) e "
+                "\"Edit Figure...\" non sarà disponibile.\n\n"
+                "Clona https://github.com/milanone/PlotStyleKit accanto a questo progetto per "
+                "abilitarli."))
+
+        self._pe_module = None       # modulo plot_editor, caricato alla prima necessità
 
         self.df = None
         self.df_raw = None          # dati grezzi (header=None) per ri-applicare l'orientamento
@@ -221,6 +263,18 @@ class PCAApp:
         tk.Button(left, text="🖼  Salva pannelli separati",
                   command=self._save_panels,
                   bg='#3a7a8f', fg='white', font=('Helvetica', 10),
+                  relief=tk.FLAT, padx=10, pady=5,
+                  cursor='hand2').pack(fill=tk.X, pady=(0, 3))
+
+        tk.Button(left, text="✏️  Edit Figure...",
+                  command=self.apri_editor_figura,
+                  bg='#6b5b95', fg='white', font=('Helvetica', 10),
+                  relief=tk.FLAT, padx=10, pady=5,
+                  cursor='hand2').pack(fill=tk.X, pady=(0, 3))
+
+        tk.Button(left, text="🗃  Salva figura (pickle)...",
+                  command=self.salva_figura_pickle,
+                  bg='#8f6b5b', fg='white', font=('Helvetica', 10),
                   relief=tk.FLAT, padx=10, pady=5,
                   cursor='hand2').pack(fill=tk.X, pady=(0, 3))
 
@@ -1168,6 +1222,61 @@ class PCAApp:
         plt.close(fig_out)
         self._set_status(f"Salvato: {base}.pdf / .png / .svg")
 
+    # ── Pannelli separati (comune a salvataggio, editor e pickle) ─────────
+    def _panel_specs(self, d):
+        n_feat = len(d['features'])
+        return [
+            ('A', self._draw_ax_A, (6, 5)),
+            ('B', self._draw_ax_B, (max(6, n_feat * 0.55 + 1.5), 5)),
+            ('C', self._draw_ax_C, (8, 7)),
+        ]
+
+    def _crea_figura_pannello(self, label):
+        """Ricostruisce come Figure autonoma (mai il pannello embedded live) il
+        pannello A/B/C dell'ultima PCA, con lo stesso layout usato da
+        `_save_panels` per l'export su file."""
+        d = self._last_pca
+        draw_fn, figsize = next(spec[1:] for spec in self._panel_specs(d) if spec[0] == label)
+        fig_p = plt.figure(figsize=figsize)
+        ax = fig_p.add_subplot(1, 1, 1)
+        draw_fn(ax, d)
+        # I pannelli usano un titolo allineato a sinistra (loc='left', stile
+        # "A | Scree Plot"). Il PlotEditor di PlotStyleKit riserva spazio per il
+        # titolo leggendo solo ax.get_title() (loc='center', il default): con un
+        # titolo 'left' non lo vede, non riserva lo spazio verticale, e le
+        # etichette degli assi finiscono tagliate dal bordo della figura una
+        # volta ridimensionata al preset Origin. Sposto il titolo su 'center'
+        # solo su questa copia standalone (mai la vista combinata né l'export
+        # diretto PDF/PNG/SVG, che restano invariati) così l'editor lo rileva.
+        left_title = ax.get_title(loc='left')
+        if left_title:
+            ax.set_title('', loc='left')
+            ax.set_title(left_title, loc='center', fontweight='bold')
+        try:
+            fig_p.tight_layout()
+        except Exception:
+            pass
+        return fig_p
+
+    def _scegli_pannello(self, title, on_choose):
+        """Piccolo dialogo per scegliere uno dei tre pannelli A/B/C, poi invoca
+        on_choose(label)."""
+        top = tk.Toplevel(self.root)
+        top.title(title)
+        top.configure(bg='#f5f5f5')
+        top.resizable(False, False)
+        tk.Label(top, text="Scegli il pannello:", bg='#f5f5f5',
+                 font=('Helvetica', 10)).pack(padx=16, pady=(14, 8))
+        for label, name in [('A', 'Scree plot'), ('B', 'Loadings'), ('C', 'Biplot')]:
+            tk.Button(top, text=f"{label} — {name}",
+                      command=lambda l=label: (top.destroy(), on_choose(l)),
+                      bg='#3a7a8f', fg='white', font=('Helvetica', 10),
+                      relief=tk.FLAT, padx=10, pady=6, cursor='hand2',
+                      width=20).pack(padx=16, pady=3)
+        tk.Button(top, text="Annulla", command=top.destroy,
+                  bg='#aaaaaa', fg='white', relief=tk.FLAT,
+                  padx=10, pady=4, cursor='hand2').pack(pady=(6, 14))
+
     # ── Salva pannelli separati ───────────────────────────────────────────
     def _save_panels(self):
         if not hasattr(self, '_last_pca'):
@@ -1183,15 +1292,9 @@ class PCAApp:
             return
         base = path.rsplit('.', 1)[0]
         d = self._last_pca
-        n_feat = len(d['features'])
 
-        panel_specs = [
-            ('A', self._draw_ax_A, (6, 5)),
-            ('B', self._draw_ax_B, (max(6, n_feat * 0.55 + 1.5), 5)),
-            ('C', self._draw_ax_C, (8, 7)),
-        ]
         saved = []
-        for label, draw_fn, figsize in panel_specs:
+        for label, draw_fn, figsize in self._panel_specs(d):
             fig_p = plt.figure(figsize=figsize)
             ax = fig_p.add_subplot(1, 1, 1)
             draw_fn(ax, d)
@@ -1203,6 +1306,80 @@ class PCAApp:
             saved.append(f"{base}_{label}")
         self._set_status(
             f"Pannelli salvati (PDF+PNG+SVG): {', '.join(saved)}")
+
+    # ── Edit Figure (PlotStyleKit) ─────────────────────────────────────────
+    def _carica_plot_editor(self):
+        """Importa (una sola volta) il modulo plot_editor: prima un'eventuale copia
+        locale in questa cartella, poi il repo fratello PlotStyleKit."""
+        if self._pe_module is None:
+            import importlib.util
+            here = os.path.dirname(os.path.abspath(__file__))
+            candidates = [os.path.join(here, 'plot_editor.pyw'),
+                          os.path.join(here, '..', 'PlotStyleKit', 'plot_editor.pyw')]
+            path = next((p for p in candidates if os.path.isfile(p)), None)
+            if path is None:
+                raise FileNotFoundError(
+                    "plot_editor.pyw non trovato (repo PlotStyleKit mancante accanto a questo progetto)")
+            spec = importlib.util.spec_from_file_location('plot_editor', path)
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            self._pe_module = mod
+        return self._pe_module
+
+    def apri_editor_figura(self):
+        """Apre il Plot Editor su un pannello (A/B/C) a scelta, ricostruito come
+        Figure indipendente — mai la figura combinata embedded nel pannello."""
+        if not hasattr(self, '_last_pca'):
+            messagebox.showwarning("Edit Figure", "Esegui prima la PCA.")
+            return
+        try:
+            self._carica_plot_editor()
+        except Exception as e:
+            traceback.print_exc()
+            messagebox.showerror("Edit Figure", f"plot_editor.pyw non disponibile:\n{e}")
+            return
+        self._scegli_pannello("Edit Figure — scegli pannello", self._apri_editor_pannello)
+
+    def _apri_editor_pannello(self, label):
+        pe = self._carica_plot_editor()
+        fig_copy = self._crea_figura_pannello(label)
+        if origin_style is not None and fig_copy.axes:
+            origin_style.applica_stile_origin(fig_copy.axes[0], fig_copy, set_size=True, preset='single')
+        top = tk.Toplevel(self.root)
+        top.geometry("1300x820")
+        editor = pe.PlotEditor(top)
+        editor.carica_figura(fig_copy, title=f"pannello {label}")
+
+    def salva_figura_pickle(self):
+        """Salva un pannello (A/B/C) a scelta come pickle: riapribile con
+        plot_editor.pyw come oggetto Figure/Axes live (non un raster congelato)."""
+        if not hasattr(self, '_last_pca'):
+            messagebox.showwarning("Save Figure", "Esegui prima la PCA.")
+            return
+        self._scegli_pannello("Salva figura (pickle) — scegli pannello",
+                              self._salva_pannello_pickle)
+
+    def _salva_pannello_pickle(self, label):
+        stem = self._last_pca['plot_title'].replace(' ', '_') or "PCA_result"
+        path = filedialog.asksaveasfilename(
+            initialdir=os.getcwd(), defaultextension='.fig.pickle',
+            initialfile=f"{stem}_{label}",
+            filetypes=[("Matplotlib Figure (pickle)", "*.pickle *.pkl"), ("Tutti", "*.*")])
+        if not path:
+            return
+        fig_out = self._crea_figura_pannello(label)
+        try:
+            if origin_style is not None and fig_out.axes:
+                origin_style.applica_stile_origin(fig_out.axes[0], fig_out, set_size=True, preset='single')
+            with open(path, 'wb') as f:
+                pickle.dump(fig_out, f)
+        except Exception as e:
+            traceback.print_exc()
+            messagebox.showerror("Save Figure", f"Salvataggio fallito:\n{e}")
+            return
+        finally:
+            plt.close(fig_out)
+        self._set_status(f"Figura pickle salvata: {path}")
 
     # ── Esporta risultati PCA ─────────────────────────────────────────────
     def _export_data(self):

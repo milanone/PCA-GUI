@@ -10,6 +10,14 @@ Avviato con doppio clic su Windows (`.pyw` = nessuna finestra console).
 numpy, pandas, scikit-learn, matplotlib, openpyxl
 adjustText  # opzionale — evita sovrapposizione etichette nel biplot
 ```
+[PlotStyleKit](https://github.com/milanone/PlotStyleKit) — repo fratello opzionale (non un pacchetto
+pip), atteso come `../PlotStyleKit` accanto a questo progetto. Fornisce lo stile matplotlib
+"Origin-like" condiviso (`origin_style.py`) e l'editor di figure standalone (`plot_editor.pyw`,
+classe `PlotEditor`) dietro i bottoni `✏️ Edit Figure...` / `🗃 Salva figura (pickle)...`. Caricato
+per path a runtime (prima una copia locale in questa cartella, poi la cartella fratella); senza di
+esso l'app funziona normalmente con lo stile matplotlib di default e quei due bottoni non sono
+disponibili — vedi l'avviso una tantum all'avvio in `__init__`. Stesso pattern di caricamento e
+implementazione di riferimento di `LabSpectrumManager.pyw` / `KleistekManager.pyw`.
 
 ## Struttura della classe PCAApp
 
@@ -34,6 +42,12 @@ adjustText  # opzionale — evita sovrapposizione etichette nel biplot
 | `_draw_pca` | Compone i tre pannelli nella figura (usa i tre metodi sopra) |
 | `_save_figure` | Salva figura completa in PDF + PNG + SVG |
 | `_save_panels` | Salva i tre pannelli come file separati (PDF + PNG + SVG × 3) |
+| `_panel_specs` | Lista `(label, draw_fn, figsize)` per i 3 pannelli — usata da `_save_panels`, `_crea_figura_pannello` |
+| `_crea_figura_pannello` | Ricostruisce un pannello (A/B/C) come `Figure` autonoma (mai `self.fig` live) |
+| `_scegli_pannello` | Piccolo dialogo di scelta pannello A/B/C, invoca una callback con la lettera scelta |
+| `_carica_plot_editor` | Importa `plot_editor.pyw` da PlotStyleKit (locale poi cartella fratella), cachato in `self._pe_module` |
+| `apri_editor_figura` / `_apri_editor_pannello` | Apre un pannello a scelta in `PlotEditor` di PlotStyleKit, restilizzato al preset Origin `single` |
+| `salva_figura_pickle` / `_salva_pannello_pickle` | Salva un pannello a scelta come `Figure` pickle (riapribile in `PlotEditor`) |
 | `_export_data` | Esporta scores/loadings/varianza in Excel (3 fogli) |
 | `_export_biplot_excel` | Esporta dati biplot-ready per Excel (6 fogli + istruzioni) |
 | `_open_data_view` | Apre Toplevel con spreadsheet editabile |
@@ -48,7 +62,7 @@ adjustText  # opzionale — evita sovrapposizione etichette nel biplot
 ### Pannello sinistro — sezioni dall'alto
 1. Carica file + selettore orientamento (righe / colonne)
 2. Bottoni: Visualizza/Modifica dati · Dati esempio
-3. Bottoni azione: Esegui PCA · Salva figura · Salva pannelli · Esporta dati · Esporta biplot Excel · Log/Messaggi
+3. Bottoni azione: Esegui PCA · Salva figura · Salva pannelli · Edit Figure · Salva figura (pickle) · Esporta dati · Esporta biplot Excel · Log/Messaggi
 4. Colonne speciali (campioni, gruppi)
 5. Pre-elaborazione (scalatura, n. componenti)
 6. Variabili per la PCA (checkbox scrollabili con lettera a–z)
@@ -74,6 +88,8 @@ adjustText  # opzionale — evita sovrapposizione etichette nel biplot
 - `self.group_color_vars` — dict `{gruppo: hex_color}`
 - `self._var_letters` — dict `{col: lettera}` (a–z poi A–Z), assegnato in `_populate_controls`
 - `self._log_lines`, `self._log_win` — log interno
+- `self._pe_module` — modulo `plot_editor` di PlotStyleKit, cachato alla prima apertura di
+  `Edit Figure...` / `Salva figura (pickle)...` (`None` finché non richiesto)
 
 ## Grafici prodotti — layout GridSpec 2×2
 

@@ -595,7 +595,12 @@ class PCAApp:
         df.columns = new_cols
         df = df.iloc[1:].reset_index(drop=True)
         for col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors='ignore')
+            # equivale al vecchio errors='ignore' (rimosso da pandas 3): la colonna resta
+            # com'è se contiene testo
+            try:
+                df[col] = pd.to_numeric(df[col])
+            except (ValueError, TypeError):
+                pass
         return df
 
     def _transpose_data(self, df_raw):

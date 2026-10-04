@@ -1,0 +1,6 @@
+numpy
+pandas
+scikit-learn
+matplotlib
+openpyxl
+adjustText   # optional: avoids overlapping labels in the biplot

@@ -158,6 +158,14 @@ In `_run_pca_inner`, prima della scalatura:
   `['tipo', 'type', 'group', 'gruppo']` per gruppi.
   **Non usare 'id' o 'name'** (sottostringhe di nomi variabili es. "acid").
 
+## Test
+`python -m unittest discover -s tests -v` — `tests/test_pca_core.py` crea una finestra Tk nascosta
+(test saltati senza tkinter/display), esegue `_run_pca_inner` sui dati di esempio e legge i risultati
+da `self._last_pca` (nessun controllo sui grafici). Verifica varianza/loadings contro scikit-learn,
+esclusione campioni, imputazione NaN, scalature, equivalenza formato standard/trasposto e che l'app
+giri anche senza PlotStyleKit (copia isolata in una cartella temporanea). `_normalize_rows` non deve
+emettere FutureWarning (`pd.to_numeric(errors='ignore')` è deprecato e rimosso in pandas 3).
+
 ## Formati file Excel supportati
 
 ### Formato standard — modalità "righe"

@@ -29,6 +29,10 @@ loadings bar chart and biplot.
 ## Requirements
 
 ```
+pip install -r requirements.txt
+```
+
+```
 numpy, pandas, scikit-learn, matplotlib, openpyxl
 adjustText   # optional — avoids overlapping labels in the biplot
 ```
@@ -75,8 +79,32 @@ data with colleagues):
 python trasponi.py <transposed_file.xlsx> [output_file.xlsx]
 ```
 
+## Tests
+
+```
+python -m unittest discover -s tests -v
+```
+
+The tests open a hidden Tk window (they are skipped when tkinter or a display is not available),
+run the PCA on the built-in example data and check the results against scikit-learn: explained
+variance, orthonormal loadings, group separation, excluded samples, missing-value imputation and
+the scaling options. They also check that the standard and transposed layouts give the same table
+and that the app runs when the PlotStyleKit sibling repo is missing.
+
+## Security note
+
+`Salva figura (pickle)...` writes Python pickle files, and `Edit Figure...` in PlotStyleKit opens
+them. A pickle can run arbitrary code when it is loaded, so open only figure files you created
+yourself or received from someone you trust.
+
 ## Structure
 
 - `pca_gui.pyw` — main application (a single `PCAApp` class)
 - `trasponi.py` — standalone converter, transposed layout → standard layout
 - `installa_pca_gui.txt` — Windows setup guide (Italian)
+- `tests/test_pca_core.py` — unit tests (see Tests)
+- `requirements.txt` — Python dependencies
+
+## License
+
+[MIT](LICENSE)
